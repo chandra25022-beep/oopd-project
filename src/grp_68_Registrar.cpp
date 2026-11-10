@@ -1,6 +1,8 @@
 // group-68
 #include "grp_68_Registrar.h"
+#include "grp_68_CommandParser.h"
 #include <sstream>
+#include <fstream>
 #include <set>
 #include <algorithm>
 
@@ -674,4 +676,160 @@ std::string Registrar::queryTranscript(const std::string& roll) {
     oss << "END_TRANSCRIPT";
     return oss.str();
 }
+
+// ── Bonus features: Save, Load, Change Grade & Audit Log ──────────────────────
+
+void Registrar::reset() {
+    rules_ = ProgramRules();
+    programSet_ = false;
+    courses_.clear();
+    students_.clear();
+    courseOrder_.clear();
+    auditLog_.clear();
+}
+
+void Registrar::save(const std::string& filename) const {
+    std::ofstream ofs(filename);
+    if (!ofs.is_open()) {
+        throw FileIoException("Cannot open file for writing: " + filename);
+    }
+
+    if (programSet_) {
+        ofs << "PROGRAM total=" << rules_.totalCredits
+            << " elective=" << rules_.electiveCredits
+            << " mingpa=" << formatGpa(rules_.mingpaHundredths)
+            << " thesis_min_grade=" << rules_.thesisMinGrade
+            << " thesis_min_credits=" << rules_.thesisMinCredits
+            << " thesis_min_gpa=" << formatGpa(rules_.thesisMinGpaHundredths)
+            << " maxload=" << rules_.maxload << "\n";
+    }
+
+    for (const auto& code : courseOrder_) {
+        const Course* c = courses_.at(code).get();
+        ofs << "COURSE " << c->code() << " " << c->typeKeyword() << " "
+            << c->credits() << " ";
+        switch (c->category()) {
+            case Category::CORE: ofs << "CORE"; break;
+            case Category::ELECTIVE: ofs << "ELECTIVE"; break;
+            case Category::MANDATORY_SU: ofs << "MANDATORY_SU"; break;
+            case Category::OPEN: ofs << "OPEN"; break;
+        }
+        if (!c->prerequisites().empty()) {
+            ofs << " PRE=";
+            for (size_t i = 0; i < c->prerequisites().size(); ++i) {
+                if (i > 0) ofs << ",";
+                ofs << c->prerequisites()[i].courseCode;
+                if (c->prerequisites()[i].minGrade != "D") {
+                    ofs << ":" << c->prerequisites()[i].minGrade;
+                }
+            }
+        }
+        if (!c->antiRequisites().empty()) {
+            ofs << " ANTI=";
+            for (size_t i = 0; i < c->antiRequisites().size(); ++i) {
+                if (i > 0) ofs << ",";
+                ofs << c->antiRequisites()[i];
+            }
+        }
+        ofs << "\n";
+    }
+
+    for (const auto& kv : students_) {
+        const Student* s = kv.second.get();
+        ofs << "STUDENT " << s->roll() << " " << s->name() << "\n";
+    }
+
+    for (const auto& kv : students_) {
+        const Student* s = kv.second.get();
+        for (const auto& a : s->attempts()) {
+            ofs << "REGISTER " << s->roll() << " " << a->course()->code() << " "
+                << a->term().toString() << "\n";
+            if (a->isThesis()) {
+                const ThesisRecord* tr = a->thesisRecord();
+                for (const auto& pg : tr->progressGrades()) {
+                    ofs << "GRADE " << s->roll() << " " << a->course()->code() << " "
+                        << pg.first.toString() << " " << pg.second.symbol() << "\n";
+                }
+                if (tr->state() == ThesisState::FINAL) {
+                    ofs << "CONVERT " << s->roll() << " " << a->course()->code() << " "
+                        << tr->convertedGrade().symbol() << "\n";
+                }
+            } else {
+                if (a->hasGrade()) {
+                    ofs << "GRADE " << s->roll() << " " << a->course()->code() << " "
+                        << a->term().toString() << " " << a->currentGrade().symbol() << "\n";
+                }
+            }
+        }
+    }
+}
+
+void Registrar::load(const std::string& filename) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) {
+        throw FileIoException("Cannot open file for reading: " + filename);
+    }
+    reset();
+    CommandParser parser(*this);
+    std::ostringstream sinkOut;
+    std::ostringstream sinkErr;
+    parser.run(ifs, sinkOut, sinkErr);
+}
+
+void Registrar::changeGrade(const std::string& token, const std::string& roll,
+                            const std::string& courseCode, const Term& term,
+                            const std::string& newSymbol, const std::string& reason) {
+    if (token != "DEAN") {
+        throw UnauthorizedException("Grade change requires authorization token DEAN");
+    }
+    Student* student = findStudent(roll);
+    if (!student) throw UnknownStudentException("Student " + roll + " not found");
+    Course* course = findCourse(courseCode);
+    if (!course) throw UnknownCourseException("Course " + courseCode + " not found");
+
+    Grade newGrade = Grade::fromSymbol(newSymbol);
+
+    std::string oldGradeStr = "NONE";
+    if (course->typeKeyword() == "THESIS") {
+        Attempt* attempt = student->findLatestThesisAttempt(courseCode);
+        if (!attempt) {
+            throw NotRegisteredException("No thesis registration for " + roll + " in " + courseCode);
+        }
+        if (attempt->thesisRecord()->state() == ThesisState::FINAL) {
+            if (!newGrade.isLetter()) {
+                throw GradeTypeMismatchException("Final thesis grade must be a letter");
+            }
+            oldGradeStr = attempt->thesisRecord()->convertedGrade().symbol();
+            attempt->thesisRecord()->overrideConvertedGrade(newGrade);
+        } else {
+            course->validateGrade(newGrade);
+            attempt->thesisRecord()->submitProgress(newGrade, term);
+        }
+    } else {
+        course->validateGrade(newGrade);
+        Attempt* attempt = student->findAttempt(courseCode, term);
+        if (!attempt) {
+            throw NotRegisteredException("No registration for " + roll + " in " + courseCode + " for " + term.toString());
+        }
+        if (attempt->hasGrade()) {
+            oldGradeStr = attempt->currentGrade().symbol();
+        }
+        attempt->overrideGrade(newGrade);
+    }
+
+    std::string logEntry = "[AUDIT] DEAN changed " + roll + " " + courseCode + " " + term.toString() +
+                           " from " + oldGradeStr + " to " + newSymbol + " Reason: " + reason;
+    auditLog_.push_back(logEntry);
+
+    // Also append to audit.log
+    std::ofstream auditFile("audit.log", std::ios::app);
+    if (auditFile.is_open()) {
+        auditFile << logEntry << "\n";
+    }
+}
+
+const std::vector<std::string>& Registrar::auditLog() const {
+    return auditLog_;
+}
+
 

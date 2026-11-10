@@ -26,6 +26,9 @@ private:
     void processGrad(const std::vector<std::string>& tokens, std::ostream& out);
     void processEligible(const std::vector<std::string>& tokens, std::ostream& out);
     void processTranscript(const std::vector<std::string>& tokens, std::ostream& out);
+    void processSave(const std::vector<std::string>& tokens);
+    void processLoad(const std::vector<std::string>& tokens);
+    void processChange(const std::vector<std::string>& tokens);
 
     Term parseTerm(const std::string& s);
     std::vector<std::string> tokenize(const std::string& line);

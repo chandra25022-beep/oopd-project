@@ -161,3 +161,24 @@ public:
     explicit NoGpaDataException(const std::string& message)
         : ComputationException("E_NO_GPA", message) {}
 };
+
+// ── Security and I/O exceptions (Bonus extensions) ───────────────────────────
+
+class SecurityException : public ErpException {
+public:
+    SecurityException(const std::string& code, const std::string& message)
+        : ErpException(code, message) {}
+};
+
+class UnauthorizedException : public SecurityException {
+public:
+    explicit UnauthorizedException(const std::string& message)
+        : SecurityException("E_UNAUTHORIZED", message) {}
+};
+
+class FileIoException : public InputException {
+public:
+    explicit FileIoException(const std::string& message)
+        : InputException("E_FILE_IO", message) {}
+};
+

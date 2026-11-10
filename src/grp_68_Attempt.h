@@ -20,6 +20,7 @@ public:
 
     // For regular/SU courses
     void setGrade(const Grade& g);
+    void overrideGrade(const Grade& g);
     bool hasGrade() const;
     bool hasFinalGrade() const;
     const Grade& currentGrade() const;

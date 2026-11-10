@@ -32,6 +32,7 @@ public:
     // Throws: InvalidThesisTransitionException if not IN_PROGRESS
     //         GradeAlreadyFinalException if already FINAL
     void convert(const Grade& letter);
+    void overrideConvertedGrade(const Grade& letter);
 
     const Grade& convertedGrade() const;  // only valid if FINAL
     bool hasConvertedGrade() const;

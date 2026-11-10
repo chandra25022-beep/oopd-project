@@ -101,6 +101,9 @@ void CommandParser::processLine(const std::string& line, std::ostream& out, std:
     else if (cmd == "GRAD")     { processGrad(tokens, out); }
     else if (cmd == "ELIGIBLE") { processEligible(tokens, out); }
     else if (cmd == "TRANSCRIPT") { processTranscript(tokens, out); }
+    else if (cmd == "SAVE")     { processSave(tokens); }
+    else if (cmd == "LOAD")     { processLoad(tokens); }
+    else if (cmd == "CHANGE")   { processChange(tokens); }
     else {
         throw ParseException("Unknown command: " + cmd);
     }
@@ -267,4 +270,41 @@ void CommandParser::processTranscript(const std::vector<std::string>& tokens, st
     }
     out << registrar_.queryTranscript(tokens[1]) << "\n";
 }
+
+void CommandParser::processSave(const std::vector<std::string>& tokens) {
+    if (tokens.size() < 2) {
+        throw ParseException("SAVE requires a filename");
+    }
+    registrar_.save(tokens[1]);
+}
+
+void CommandParser::processLoad(const std::vector<std::string>& tokens) {
+    if (tokens.size() < 2) {
+        throw ParseException("LOAD requires a filename");
+    }
+    registrar_.load(tokens[1]);
+}
+
+void CommandParser::processChange(const std::vector<std::string>& tokens) {
+    if (tokens.size() < 6) {
+        throw ParseException("CHANGE requires token, roll, course, term, symbol, and reason");
+    }
+    const std::string& token = tokens[1];
+    const std::string& roll = tokens[2];
+    const std::string& course = tokens[3];
+    Term term = parseTerm(tokens[4]);
+    const std::string& symbol = tokens[5];
+
+    std::string reason;
+    for (size_t i = 6; i < tokens.size(); ++i) {
+        if (i > 6) reason += " ";
+        reason += tokens[i];
+    }
+    if (reason.empty()) {
+        reason = "Administrative adjustment";
+    }
+
+    registrar_.changeGrade(token, roll, course, term, symbol, reason);
+}
+
 

@@ -1,0 +1,15 @@
+# T13: Bonus features - SAVE, LOAD round-trip, CHANGE with DEAN token
+PROGRAM total=20 elective=3 mingpa=5.00 thesis_min_grade=C thesis_min_credits=10 thesis_min_gpa=6.00 maxload=12
+COURSE CS101 REGULAR 4 CORE
+COURSE CS102 REGULAR 4 CORE
+STUDENT S100 Alice
+REGISTER S100 CS101 2024-1
+GRADE S100 CS101 2024-1 B
+GPA S100
+SAVE test_save.erp
+CHANGE HACKER S100 CS101 2024-1 A unauthorized change
+CHANGE DEAN S100 CS101 2024-1 A Re-evaluation approved
+GPA S100
+LOAD test_save.erp
+GPA S100
+

@@ -63,6 +63,11 @@ void ThesisRecord::convert(const Grade& letter) {
     state_ = ThesisState::FINAL;
 }
 
+void ThesisRecord::overrideConvertedGrade(const Grade& letter) {
+    convertedGrade_ = letter;
+    state_ = ThesisState::FINAL;
+}
+
 const Grade& ThesisRecord::convertedGrade() const {
     return *convertedGrade_;
 }

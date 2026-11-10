@@ -29,6 +29,15 @@ public:
     void grade(const std::string& roll, const std::string& courseCode, const Term& term, const std::string& symbol);
     void convert(const std::string& roll, const std::string& courseCode, const std::string& letter);
 
+    // Bonus operations
+    void save(const std::string& filename) const;
+    void load(const std::string& filename);
+    void changeGrade(const std::string& token, const std::string& roll,
+                     const std::string& courseCode, const Term& term,
+                     const std::string& newSymbol, const std::string& reason);
+    const std::vector<std::string>& auditLog() const;
+    void reset();
+
     std::string queryGpa(const std::string& roll);
     std::string queryAvg(const std::string& roll);
     std::string queryGrad(const std::string& roll);
@@ -44,6 +53,7 @@ private:
     std::map<std::string, std::unique_ptr<Course>> courses_;
     std::map<std::string, std::unique_ptr<Student>> students_;
     std::vector<std::string> courseOrder_;
+    std::vector<std::string> auditLog_;
 
     struct GpaResult {
         long long numerator;

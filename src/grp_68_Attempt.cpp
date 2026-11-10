@@ -29,6 +29,10 @@ void Attempt::setGrade(const Grade& g) {
     grade_ = g;
 }
 
+void Attempt::overrideGrade(const Grade& g) {
+    grade_ = g;
+}
+
 bool Attempt::hasGrade() const { return grade_.has_value(); }
 
 bool Attempt::hasFinalGrade() const {
