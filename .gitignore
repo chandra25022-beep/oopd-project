@@ -1,0 +1,10 @@
+# group-68
+# Binaries and build artifacts (CRITICAL: no binaries allowed in repo/GC)
+acaderp
+acaderp.exe
+build/
+*.o
+*.out.tmp
+.DS_Store
+Thumbs.db
+*.pdf
